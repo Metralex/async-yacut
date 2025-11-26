@@ -1,7 +1,16 @@
+import re
+
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, TextAreaField, URLField
-from wtforms.validators import DataRequired, Length, Optional
-from flask_wtf.file import MultipleFileField, FileAllowed, FileField, FileRequired
+from flask_wtf.file import (FileAllowed, FileField, FileRequired,
+                            MultipleFileField)
+from wtforms import StringField, SubmitField, URLField
+from wtforms.validators import DataRequired, Length, Optional, ValidationError
+
+
+def validate_custom_id(form, field):
+    """Валидатор: custom_id только латинские буквы и цифры."""
+    if field.data and not re.match(r'^[a-zA-Z0-9]+$', field.data):
+        raise ValidationError('Недопустимые символы в короткой ссылке')
 
 
 class URLMapForm(FlaskForm):
@@ -14,16 +23,18 @@ class URLMapForm(FlaskForm):
     )
     custom_id = StringField(
         "Короткая ссылка",
-        validators=[Length(1, 16, message="Слишком длинная ссылка"), Optional()],
+        validators=[
+            Length(1, 16, message="Слишком длинная ссылка"),
+            Optional(),
+            validate_custom_id,
+        ],
     )
     submit = SubmitField('Создать')
 
     images = MultipleFileField(
         validators=[
             FileAllowed(
-                # Список разрешенных расширений для файлов.
-                ['jpg', 'jpeg', 'png', 'gif', 'bmp'], 
-                # Сообщение, в случае если расширение не совпадает.
+                ['jpg', 'jpeg', 'png', 'gif', 'bmp'],
                 message=(
                     'Выберите файлы с расширением '
                     '.jpg, .jpeg, .png, .gif или .bmp'

@@ -33,6 +33,42 @@
     </div>
   </div>
 
+  <div class="container">
+    <div class="row ">
+      <div class="col-sm">
+      </div>
+      <div class="col-sm">
+        <p class="text-center">
+          <h5 class="text-center">
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                {% for message in messages %}{{ message }}{% endfor %}
+              {% endif %}
+            {% endwith %}
+          </h5>
+        </p>
+        {% if new_files %}
+        <table class="table">
+          <tbody>
+            {% for file_info in new_files %}
+            <tr>
+              <td>{{ file_info.filename }}</td>
+              <td>
+                <a href="{{ file_info.short_link }}" class="regular-link" download>
+                  {{ file_info.short_link }}
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      </div>
+      <div class="col-sm">
+      </div>
+    </div>
+  </div>
+
   {% if uploaded_files %}
   <div class="container">
     <div class="row">
@@ -40,12 +76,6 @@
       </div>
       <div class="col-sm">
         <table class="table">
-          <thead>
-            <tr>
-              <th>Имя файла</th>
-              <th>Короткая ссылка</th>
-            </tr>
-          </thead>
           <tbody>
             {% for file_info in uploaded_files %}
             <tr>
@@ -65,6 +95,8 @@
     </div>
   </div>
   {% endif %}
+
+  {# История из БД больше не выводится — на странице только текущие загрузки #}
 </section>
 {% endblock %}
 

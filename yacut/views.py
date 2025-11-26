@@ -1,15 +1,16 @@
-from random import randrange
-import string
-from flask import abort, flash, redirect, render_template, request
-import os
-import aiohttp
-from werkzeug.utils import secure_filename
-from . import app, db
-from .forms import URLMapForm
-from .models import URLMap
-import requests
 import asyncio
-from .forms import FileUploadForm
+import os
+import string
+from random import randrange
+
+import aiohttp
+import requests
+from flask import abort, flash, redirect, render_template, request, session
+from werkzeug.utils import secure_filename
+
+from . import app, db
+from .forms import FileUploadForm, URLMapForm
+from .models import URLMap
 
 
 def get_unique_short_id():
@@ -25,22 +26,28 @@ def get_unique_short_id():
 def index_view():
     form = URLMapForm()
     link = None
+    history = session.get('short_links', [])
 
     if form.validate_on_submit():
         original_link = form.original_link.data
         custom_id = form.custom_id.data
 
-        # Если пользователь указал кастомный ID, проверяем его уникальность
         if custom_id:
+            reserved_routes = ['files', 'upload_files', 'api']
+            if custom_id in reserved_routes:
+                flash('Предложенный вариант короткой ссылки уже существует.')
+                return render_template(
+                    'index.html', form=form, link=None, history=history
+                )
             if URLMap.query.filter_by(short=custom_id).first():
-                flash(f'Имя {custom_id} уже есть, попробуйте другое!')
-                return render_template('index.html', form=form, link=None)
+                flash('Предложенный вариант короткой ссылки уже существует.')
+                return render_template(
+                    'index.html', form=form, link=None, history=history
+                )
             short_id = custom_id
         else:
-            # Генерируем случайный ID
             short_id = get_unique_short_id()
 
-        # Создаем новую запись
         url_map = URLMap(
             original=original_link,
             short=short_id
@@ -49,7 +56,12 @@ def index_view():
         db.session.commit()
         link = url_map
         flash('Ссылка успешно создана!', 'success')
-    return render_template('index.html', form=form, link=link)
+        history.append({
+            'original': original_link,
+            'short': link.short
+        })
+        session['short_links'] = history
+    return render_template('index.html', form=form, link=link, history=history)
 
 
 @app.route('/<short_link>')
@@ -59,8 +71,6 @@ def redirect_view(short_link):
         abort(404)
 
     original = url_map.original
-    # Если в original лежит путь к файлу на Яндекс.Диске —
-    # запрашиваем свежий href и редиректим на него.
     if original.startswith('app:/') or original.startswith('/'):
         disk_token = os.getenv('DISK_TOKEN')
         base_url = 'https://cloud-api.yandex.net'
@@ -74,38 +84,45 @@ def redirect_view(short_link):
         href = resp.json()['href']
         return redirect(href)
 
-    # Обычные короткие ссылки работают как раньше
     return redirect(original)
 
 
-@app.route('/upload_files', methods=['GET', 'POST'])
+@app.route('/files', methods=['GET', 'POST'])
 def upload_files():
     """Страница для загрузки файлов на Яндекс Диск."""
     form = FileUploadForm()
-    uploaded_files = []
+    uploaded_files = session.get('uploaded_files', [])
     if request.method == 'POST':
         files = request.files.getlist('files')
         if files and any(f.filename for f in files):
             from flask import current_app
             with current_app.app_context():
-                uploaded_files = asyncio.run(upload_files_to_yandex_disk(
+                new_files = asyncio.run(upload_files_to_yandex_disk(
                     files, request.host_url
                 ))
+            uploaded_files.extend(new_files)
+            session['uploaded_files'] = uploaded_files
+            if new_files:
+                flash(
+                    f'Успешно загружено файлов: {len(new_files)}',
+                    'success'
+                )
+                return render_template(
+                    'upload_files.html',
+                    form=form,
+                    uploaded_files=uploaded_files,
+                    new_files=new_files,
+                )
     return render_template(
-        'upload_files.html', form=form, uploaded_files=uploaded_files
+        'upload_files.html',
+        form=form,
+        uploaded_files=uploaded_files,
     )
 
 
 async def upload_files_to_yandex_disk(files, base_host_url):
     """
     Асинхронная загрузка файлов на Яндекс Диск.
-
-    Args:
-        files: Список файлов для загрузки
-        base_host_url: Базовый URL хоста для генерации коротких ссылок
-
-    Returns:
-        list: Список словарей с информацией о загруженных файлах
     """
     disk_token = os.getenv('DISK_TOKEN')
     if not disk_token:
@@ -119,11 +136,9 @@ async def upload_files_to_yandex_disk(files, base_host_url):
                 continue
             original_filename = file.filename
             filename = secure_filename(original_filename)
-            # Постоянный путь к файлу на Яндекс.Диске
-            file_path = f'app:/{filename}'
+            file_path = 'app:/' + filename
             file_content = file.read()
             try:
-                # 1. Получение ссылки для загрузки
                 upload_url = f'{base_url}/v1/disk/resources/upload'
                 async with session.get(
                     upload_url,
@@ -134,12 +149,17 @@ async def upload_files_to_yandex_disk(files, base_host_url):
                         continue
                     upload_data = await resp.json()
                     upload_href = upload_data.get('href')
-                # 2. Загрузка файла
                 async with session.put(upload_href, data=file_content) as resp:
                     if resp.status not in (201, 202):
                         continue
-                # 3. Создание или повторное использование короткой ссылки
-                # для этого пути
+                download_url = f'{base_url}/v1/disk/resources/download'
+                async with session.get(
+                    download_url,
+                    headers=headers,
+                    params={'path': file_path}
+                ) as resp:
+                    if resp.status != 200:
+                        continue
                 url_map = URLMap.query.filter_by(original=file_path).first()
                 if not url_map:
                     short_id = get_unique_short_id()
