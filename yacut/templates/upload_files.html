@@ -50,7 +50,11 @@
             {% for file_info in uploaded_files %}
             <tr>
               <td>{{ file_info.filename }}</td>
-              <td><a href="{{ file_info.short_link }}" class="regular-link">{{ file_info.short_link }}</a></td>
+              <td>
+                <a href="{{ file_info.short_link }}" class="regular-link" download>
+                  {{ file_info.short_link }}
+                </a>
+              </td>
             </tr>
             {% endfor %}
           </tbody>

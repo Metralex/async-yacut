@@ -1,23 +1,23 @@
 import os
-from pprint import pprint
+import urllib
 
 import requests
 from dotenv import load_dotenv
 
 API_HOST = 'https://cloud-api.yandex.net/'
 API_VERSION = 'v1'
-DISK_INFO_URL = f'{API_HOST}{API_VERSION}/disk/'
+DOWNLOAD_LINK_URL = f'{API_HOST}{API_VERSION}/disk/resources/download'
 
-# Загрузить из .env значение токена.
 load_dotenv()
-DISK_TOKEN = os.environ.get('y0__xDMlfdFGKPjOyClw82lFY5XyeYJCqbY7GOk-mOpgijgwfW7')
+DISK_TOKEN = os.environ.get('DISK_TOKEN')
 
-# Словарь с заголовком авторизации.
-AUTH_HEADERS = {
-    'Authorization': f'OAuth {DISK_TOKEN}'
-}
+AUTH_HEADERS = {'Authorization': f'OAuth {DISK_TOKEN}'}
 
-# Запрос.
-response = requests.get(url=DISK_INFO_URL, headers=AUTH_HEADERS)
+response = requests.get(
+    headers=AUTH_HEADERS,
+    url=DOWNLOAD_LINK_URL, 
+    params={'path': 'app:/filename.txt'}
+)
 
-pprint(response.json())
+link = response.json()['href']
+print(link)

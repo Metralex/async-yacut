@@ -1,6 +1,6 @@
 from random import randrange
 import string
-from flask import abort, flash, redirect, render_template, url_for, request
+from flask import abort, flash, redirect, render_template, request
 import os
 import aiohttp
 from werkzeug.utils import secure_filename
@@ -8,7 +8,6 @@ from . import app, db
 from .forms import URLMapForm
 from .models import URLMap
 import requests
-from dotenv import load_dotenv
 import asyncio
 from .forms import FileUploadForm
 
@@ -26,11 +25,11 @@ def get_unique_short_id():
 def index_view():
     form = URLMapForm()
     link = None
-    
+
     if form.validate_on_submit():
         original_link = form.original_link.data
         custom_id = form.custom_id.data
-        
+
         # Если пользователь указал кастомный ID, проверяем его уникальность
         if custom_id:
             if URLMap.query.filter_by(short=custom_id).first():
@@ -40,7 +39,7 @@ def index_view():
         else:
             # Генерируем случайный ID
             short_id = get_unique_short_id()
-        
+
         # Создаем новую запись
         url_map = URLMap(
             original=original_link,
@@ -48,20 +47,35 @@ def index_view():
         )
         db.session.add(url_map)
         db.session.commit()
-        
         link = url_map
         flash('Ссылка успешно создана!', 'success')
-    
     return render_template('index.html', form=form, link=link)
 
 
 @app.route('/<short_link>')
 def redirect_view(short_link):
     url_map = URLMap.query.filter_by(short=short_link).first()
-    if url_map:
-        return redirect(url_map.original)
-    else:
+    if not url_map:
         abort(404)
+
+    original = url_map.original
+    # Если в original лежит путь к файлу на Яндекс.Диске —
+    # запрашиваем свежий href и редиректим на него.
+    if original.startswith('app:/') or original.startswith('/'):
+        disk_token = os.getenv('DISK_TOKEN')
+        base_url = 'https://cloud-api.yandex.net'
+        download_url = f'{base_url}/v1/disk/resources/download'
+        resp = requests.get(
+            download_url,
+            headers={'Authorization': f'OAuth {disk_token}'},
+            params={'path': original},
+        )
+        resp.raise_for_status()
+        href = resp.json()['href']
+        return redirect(href)
+
+    # Обычные короткие ссылки работают как раньше
+    return redirect(original)
 
 
 @app.route('/upload_files', methods=['GET', 'POST'])
@@ -69,47 +83,45 @@ def upload_files():
     """Страница для загрузки файлов на Яндекс Диск."""
     form = FileUploadForm()
     uploaded_files = []
-    
     if request.method == 'POST':
         files = request.files.getlist('files')
         if files and any(f.filename for f in files):
             from flask import current_app
             with current_app.app_context():
-                uploaded_files = asyncio.run(upload_files_to_yandex_disk(files, request.host_url))
-    
-    return render_template('upload_files.html', form=form, uploaded_files=uploaded_files)
+                uploaded_files = asyncio.run(upload_files_to_yandex_disk(
+                    files, request.host_url
+                ))
+    return render_template(
+        'upload_files.html', form=form, uploaded_files=uploaded_files
+    )
 
 
 async def upload_files_to_yandex_disk(files, base_host_url):
     """
     Асинхронная загрузка файлов на Яндекс Диск.
-    
+
     Args:
         files: Список файлов для загрузки
         base_host_url: Базовый URL хоста для генерации коротких ссылок
-    
+
     Returns:
         list: Список словарей с информацией о загруженных файлах
     """
     disk_token = os.getenv('DISK_TOKEN')
     if not disk_token:
         return []
-    
     base_url = 'https://cloud-api.yandex.net'
     uploaded_files = []
-    
     async with aiohttp.ClientSession() as session:
         headers = {'Authorization': f'OAuth {disk_token}'}
-        
         for file in files:
             if not file or not file.filename:
                 continue
-            
             original_filename = file.filename
             filename = secure_filename(original_filename)
-            file_path = f'/{filename}'
+            # Постоянный путь к файлу на Яндекс.Диске
+            file_path = f'app:/{filename}'
             file_content = file.read()
-            
             try:
                 # 1. Получение ссылки для загрузки
                 upload_url = f'{base_url}/v1/disk/resources/upload'
@@ -122,37 +134,22 @@ async def upload_files_to_yandex_disk(files, base_host_url):
                         continue
                     upload_data = await resp.json()
                     upload_href = upload_data.get('href')
-                
                 # 2. Загрузка файла
                 async with session.put(upload_href, data=file_content) as resp:
                     if resp.status not in (201, 202):
                         continue
-                
-                # 3. Получение ссылки для скачивания
-                download_url = f'{base_url}/v1/disk/resources/download'
-                async with session.get(
-                    download_url,
-                    headers=headers,
-                    params={'path': file_path}
-                ) as resp:
-                    if resp.status != 200:
-                        continue
-                    download_data = await resp.json()
-                    download_href = download_data.get('href')
-                
-                # 4. Создание короткой ссылки для скачивания
-                short_id = get_unique_short_id()
-                url_map = URLMap(original=download_href, short=short_id)
-                db.session.add(url_map)
-                db.session.commit()
-                
-                short_link = f'{base_host_url.rstrip("/")}/{short_id}'
-                uploaded_files.append({
-                    'filename': original_filename,
-                    'short_link': short_link
-                })
-                
-            except Exception as e:
+                # 3. Создание или повторное использование короткой ссылки
+                # для этого пути
+                url_map = URLMap.query.filter_by(original=file_path).first()
+                if not url_map:
+                    short_id = get_unique_short_id()
+                    url_map = URLMap(original=file_path, short=short_id)
+                    db.session.add(url_map)
+                    db.session.commit()
+                short_link = f'{base_host_url.rstrip("/")}/{url_map.short}'
+                uploaded_files.append(
+                    {'filename': original_filename, 'short_link': short_link}
+                )
+            except Exception:
                 continue
-    
     return uploaded_files
