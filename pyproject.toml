@@ -4,6 +4,7 @@ target-version = ['py312']
 include = '\.pyi?$'
 quote-style = "single"
 
+
 [tool.isort]
 known_first_party = ["yacut"]
 line_length = 79
@@ -22,15 +23,6 @@ skip_glob = [
 ]
 default_section = "THIRDPARTY"
 src_paths = ["yacut"]
-known_django = "django"
-sections = [
-    "FUTURE",
-    "STDLIB",
-    "THIRDPARTY",
-    "DJANGO",
-    "FIRSTPARTY",
-    "LOCALFOLDER"
-]
 
 [tool.ruff]
 line-length = 79

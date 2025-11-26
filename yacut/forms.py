@@ -2,7 +2,10 @@ import re
 
 from flask_wtf import FlaskForm
 from flask_wtf.file import (
-    FileAllowed, FileField, FileRequired, MultipleFileField,
+    FileAllowed,
+    FileField,
+    FileRequired,
+    MultipleFileField,
 )
 from wtforms import StringField, SubmitField, URLField
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
@@ -40,7 +43,7 @@ class URLMapForm(FlaskForm):
                 message=(
                     'Выберите файлы с расширением '
                     '.jpg, .jpeg, .png, .gif или .bmp'
-                )
+                ),
             )
         ]
     )
@@ -51,9 +54,7 @@ class FileUploadForm(FlaskForm):
 
     files = FileField(
         'Выберите файлы',
-        validators=[
-            FileRequired(message='Выберите хотя бы один файл')
-        ],
-        render_kw={'multiple': True}
+        validators=[FileRequired(message='Выберите хотя бы один файл')],
+        render_kw={'multiple': True},
     )
     submit = SubmitField('Загрузить')

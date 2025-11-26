@@ -1,6 +1,8 @@
 from datetime import datetime
-from yacut import db
+
 from flask import url_for
+
+from yacut import db
 
 
 class URLMap(db.Model):
@@ -16,5 +18,5 @@ class URLMap(db.Model):
             'url': self.original,
             'short_link': url_for(
                 'redirect_view', short_link=self.short, _external=True
-            )
+            ),
         }

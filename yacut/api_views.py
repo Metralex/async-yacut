@@ -2,12 +2,12 @@ import re
 from http import HTTPStatus
 
 from flask import jsonify, request
+from settings import MAX_SHORT_ID_LENGTH
 
 from . import app, db
 from .error_handlers import InvalidAPIUsage
 from .models import URLMap
 from .views import get_unique_short_id
-from ..settings import MAX_SHORT_ID_LENGTH
 
 
 def is_valid_short_id(custom_id):
