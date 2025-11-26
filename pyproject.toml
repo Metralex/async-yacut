@@ -5,7 +5,7 @@ include = '\.pyi?$'
 quote-style = "single"
 
 [tool.isort]
-known_first_party = ["api", "backend", "recipes", "users"]
+known_first_party = ["yacut"]
 line_length = 79
 multi_line_output = 5
 lines_after_imports = 2
@@ -21,7 +21,7 @@ skip_glob = [
     "yandex/*/venv*"
 ]
 default_section = "THIRDPARTY"
-src_paths = ["backend"]
+src_paths = ["yacut"]
 known_django = "django"
 sections = [
     "FUTURE",

@@ -7,10 +7,12 @@ from . import app, db
 from .error_handlers import InvalidAPIUsage
 from .models import URLMap
 from .views import get_unique_short_id
+from ..settings import MAX_SHORT_ID_LENGTH
 
 
 def is_valid_short_id(custom_id):
     """Проверяет, что custom_id содержит только латинские буквы и цифры."""
+
     return bool(re.match(r'^[a-zA-Z0-9]+$', custom_id))
 
 
@@ -34,7 +36,7 @@ def add_link():
             raise InvalidAPIUsage(
                 'Предложенный вариант короткой ссылки уже существует.'
             )
-        if len(custom_id) > 16:
+        if len(custom_id) > MAX_SHORT_ID_LENGTH:
             raise InvalidAPIUsage(
                 'Указано недопустимое имя для короткой ссылки'
             )

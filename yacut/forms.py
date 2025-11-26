@@ -10,22 +10,23 @@ from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
 def validate_custom_id(form, field):
     """Валидатор: custom_id только латинские буквы и цифры."""
+
     if field.data and not re.match(r'^[a-zA-Z0-9]+$', field.data):
         raise ValidationError('Недопустимые символы в короткой ссылке')
 
 
 class URLMapForm(FlaskForm):
     original_link = URLField(
-        "Длинная ссылка",
+        'Длинная ссылка',
         validators=[
-            DataRequired(message="Обязательное поле"),
-            Length(1, 128, message="Слишком длинная ссылка"),
+            DataRequired(message='Обязательное поле'),
+            Length(1, 128, message='Слишком длинная ссылка'),
         ],
     )
     custom_id = StringField(
-        "Короткая ссылка",
+        'Короткая ссылка',
         validators=[
-            Length(1, 16, message="Слишком длинная ссылка"),
+            Length(1, 16, message='Слишком длинная ссылка'),
             Optional(),
             validate_custom_id,
         ],
