@@ -2,8 +2,8 @@ import re
 from http import HTTPStatus
 
 from flask import jsonify, request
-from sqlalchemy import exists
 from settings import MAX_SHORT_ID_LENGTH
+from sqlalchemy import exists
 
 from . import app, db
 from .error_handlers import InvalidAPIUsage

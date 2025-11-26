@@ -2,10 +2,7 @@ import re
 
 from flask_wtf import FlaskForm
 from flask_wtf.file import (
-    FileAllowed,
-    FileField,
-    FileRequired,
-    MultipleFileField,
+    FileAllowed, FileField, FileRequired, MultipleFileField,
 )
 from wtforms import StringField, SubmitField, URLField
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
