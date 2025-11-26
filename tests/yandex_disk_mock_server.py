@@ -7,6 +7,7 @@ import aiohttp
 import pytest
 from aiohttp import web
 
+
 REQUEST_UPLOAD_URL = '/v1/disk/resources/upload'
 UPLOAD_URL = '/upload-target'
 DOWNLOAD_LINK_URL = '/v1/disk/resources/download'

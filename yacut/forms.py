@@ -1,8 +1,9 @@
 import re
 
 from flask_wtf import FlaskForm
-from flask_wtf.file import (FileAllowed, FileField, FileRequired,
-                            MultipleFileField)
+from flask_wtf.file import (
+    FileAllowed, FileField, FileRequired, MultipleFileField,
+)
 from wtforms import StringField, SubmitField, URLField
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
@@ -46,6 +47,7 @@ class URLMapForm(FlaskForm):
 
 class FileUploadForm(FlaskForm):
     """Форма для загрузки файлов."""
+
     files = FileField(
         'Выберите файлы',
         validators=[

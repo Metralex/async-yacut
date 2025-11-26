@@ -2,9 +2,9 @@ import re
 from http import HTTPStatus
 
 import pytest
-
 from tests.conftest import PY_URL, TEST_BASE_URL
 from yacut.models import URLMap
+
 
 CUSTOM_ID = 'py'
 INDEX_URL = '/'

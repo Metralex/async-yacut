@@ -3,8 +3,10 @@ from http import HTTPStatus
 from io import BytesIO
 
 from tests.conftest import TEST_BASE_URL, generate_png_bytes
-from tests.yandex_disk_mock_server import (COMMON_ASSERT_MSG_FOR_UPLOAD_FILES,
-                                           intercept_requests)
+from tests.yandex_disk_mock_server import (
+    COMMON_ASSERT_MSG_FOR_UPLOAD_FILES, intercept_requests,
+)
+
 
 FILES_URL = '/files'
 EXPECTED_API_CALLS = {
