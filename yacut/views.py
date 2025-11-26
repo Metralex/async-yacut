@@ -4,6 +4,7 @@ from random import randrange
 
 import requests
 from flask import abort, flash, redirect, render_template, session
+from sqlalchemy import exists
 
 from . import app, db
 from .forms import URLMapForm
@@ -16,7 +17,9 @@ def get_unique_short_id():
     chars = string.ascii_letters + string.digits
     while True:
         short_id = ''.join([chars[randrange(len(chars))] for _ in range(6)])
-        if not URLMap.query.filter_by(short=short_id).first():
+        if not db.session.query(
+            exists().where(URLMap.short == short_id)
+        ).scalar():
             return short_id
 
 
@@ -41,7 +44,9 @@ def index_view():
             return render_template(
                 'index.html', form=form, link=None, history=history
             )
-        if URLMap.query.filter_by(short=custom_id).first():
+        if db.session.query(
+            exists().where(URLMap.short == custom_id)
+        ).scalar():
             flash('Предложенный вариант короткой ссылки уже существует.')
             return render_template(
                 'index.html', form=form, link=None, history=history

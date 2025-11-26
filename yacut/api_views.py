@@ -2,6 +2,7 @@ import re
 from http import HTTPStatus
 
 from flask import jsonify, request
+from sqlalchemy import exists
 from settings import MAX_SHORT_ID_LENGTH
 
 from . import app, db
@@ -44,7 +45,9 @@ def add_link():
             raise InvalidAPIUsage(
                 'Указано недопустимое имя для короткой ссылки'
             )
-        if URLMap.query.filter_by(short=custom_id).first():
+        if db.session.query(
+            exists().where(URLMap.short == custom_id)
+        ).scalar():
             raise InvalidAPIUsage(
                 'Предложенный вариант короткой ссылки уже существует.'
             )
