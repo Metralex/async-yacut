@@ -1,16 +1,14 @@
 import os
-import string
-from random import randrange
+from http import HTTPStatus
 
 import requests
 from flask import abort, flash, redirect, render_template, session
+from settings import SHORT_ID
 from sqlalchemy import exists
 
 from . import app, db
 from .forms import URLMapForm
 from .models import URLMap
-from settings import SHORT_ID
-from http import HTTPStatus
 
 
 def get_unique_short_id():
