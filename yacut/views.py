@@ -10,6 +10,7 @@ from . import app, db
 from .forms import URLMapForm
 from .models import URLMap
 from settings import SHORT_ID
+from http import HTTPStatus
 
 
 def get_unique_short_id():
@@ -67,20 +68,23 @@ def index_view():
 def redirect_view(short_link):
     url_map = URLMap.query.filter_by(short=short_link).first()
     if not url_map:
-        abort(404)
+        abort(HTTPStatus.NOT_FOUND)
 
     original = url_map.original
     if original.startswith('app:/') or original.startswith('/'):
         disk_token = os.getenv('DISK_TOKEN')
         base_url = 'https://cloud-api.yandex.net'
         download_url = f'{base_url}/v1/disk/resources/download'
-        resp = requests.get(
-            download_url,
-            headers={'Authorization': f'OAuth {disk_token}'},
-            params={'path': original},
-        )
-        resp.raise_for_status()
-        href = resp.json()['href']
-        return redirect(href)
+        try:
+            resp = requests.get(
+                download_url,
+                headers={'Authorization': f'OAuth {disk_token}'},
+                params={'path': original},
+            )
+            resp.raise_for_status()
+            href = resp.json()['href']
+            return redirect(href)
+        except (requests.RequestException, KeyError):
+            abort(HTTPStatus.INTERNAL_SERVER_ERROR)
 
     return redirect(original)
