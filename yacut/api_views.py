@@ -13,7 +13,6 @@ from .views import get_unique_short_id
 
 def is_valid_short_id(custom_id):
     """Проверяет, что custom_id содержит только латинские буквы и цифры."""
-
     return bool(re.match(r'^[a-zA-Z0-9]+$', custom_id))
 
 

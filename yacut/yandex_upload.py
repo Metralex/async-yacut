@@ -15,7 +15,6 @@ from .views import get_unique_short_id
 @app.route('/files', methods=['GET', 'POST'])
 def upload_files():
     """Страница для загрузки файлов на Яндекс Диск."""
-
     form = FileUploadForm()
     uploaded_files = session.get('uploaded_files', [])
     if request.method == 'POST':
@@ -46,7 +45,6 @@ def upload_files():
 
 async def upload_files_to_yandex_disk(files, base_host_url):
     """Асинхронная загрузка файлов на Яндекс Диск."""
-
     disk_token = os.getenv('DISK_TOKEN')
     if not disk_token:
         return []

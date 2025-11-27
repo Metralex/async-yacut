@@ -9,18 +9,16 @@ from sqlalchemy import exists
 from . import app, db
 from .forms import URLMapForm
 from .models import URLMap
+from settings import SHORT_ID
 
 
 def get_unique_short_id():
     """Генерирует уникальный короткий идентификатор"""
-
-    chars = string.ascii_letters + string.digits
     while True:
-        short_id = ''.join([chars[randrange(len(chars))] for _ in range(6)])
         if not db.session.query(
-            exists().where(URLMap.short == short_id)
+            exists().where(URLMap.short == SHORT_ID)
         ).scalar():
-            return short_id
+            return SHORT_ID
 
 
 @app.route('/', methods=['GET', 'POST'])

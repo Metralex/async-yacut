@@ -1,7 +1,11 @@
 import os
-
+from random import randrange
+import string
 
 MAX_SHORT_ID_LENGTH = 16
+ALLOWED_CHARS = string.ascii_letters + string.digits
+SHORT_ID = ''.join(
+    [ALLOWED_CHARS[randrange(len(ALLOWED_CHARS))] for _ in range(6)])
 
 
 class Config(object):
