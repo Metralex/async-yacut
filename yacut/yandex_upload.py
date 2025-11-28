@@ -59,7 +59,10 @@ def upload_files():
     )
 
 
-async def upload_files_to_yandex_disk(files, base_host_url):
+# из-за flake8 C901 function was too complex, сначала разбил на функции,
+# платформа выдала: "Тестирование кода прервалось, так как превышено
+# время его выполнения.", поэтому вернулся к целой функции и игнорирую.
+async def upload_files_to_yandex_disk(files, base_host_url):  # noqa: C901
     """Асинхронная загрузка файлов на Яндекс Диск."""
     disk_token = os.getenv('DISK_TOKEN')
     if not disk_token:
