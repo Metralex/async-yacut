@@ -1,9 +1,10 @@
 import os
 from http import HTTPStatus
+from random import randrange
 
 import requests
 from flask import abort, flash, redirect, render_template, session
-from settings import SHORT_ID
+from settings import ALLOWED_CHARS, SHORT_ID_LENGTH
 from sqlalchemy import exists
 
 from . import app, db
@@ -14,10 +15,12 @@ from .models import URLMap
 def get_unique_short_id():
     """Генерирует уникальный короткий идентификатор"""
     while True:
+        short_id = ''.join([ALLOWED_CHARS[randrange(
+            len(ALLOWED_CHARS))] for _ in range(SHORT_ID_LENGTH)])
         if not db.session.query(
-            exists().where(URLMap.short == SHORT_ID)
+            exists().where(URLMap.short == short_id)
         ).scalar():
-            return SHORT_ID
+            return short_id
 
 
 @app.route('/', methods=['GET', 'POST'])

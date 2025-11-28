@@ -59,10 +59,68 @@ def upload_files():
     )
 
 
-# из-за flake8 C901 function was too complex, сначала разбил на функции,
-# платформа выдала: "Тестирование кода прервалось, так как превышено
-# время его выполнения.", поэтому вернулся к целой функции и игнорирую.
-async def upload_files_to_yandex_disk(files, base_host_url):  # noqa: C901
+# из-за flake8 C901 function is too complex разбил на части
+async def _request_upload_href(session, base_url, headers, file_path):
+    upload_url = f'{base_url}/v1/disk/resources/upload'
+    try:
+        async with session.get(
+            upload_url,
+            headers=headers,
+            params={'path': file_path, 'overwrite': 'true'},
+        ) as resp:
+            if resp.status != HTTPStatus.OK:
+                return None
+            try:
+                upload_data = await resp.json()
+            except aiohttp.ContentTypeError:
+                return None
+            return upload_data.get('href')
+    except (aiohttp.ClientError, aiohttp.ClientResponseError):
+        return None
+
+
+async def _upload_file(session, upload_href, file_content):
+    if not upload_href:
+        return False
+    try:
+        async with session.put(upload_href, data=file_content) as resp:
+            return resp.status in (HTTPStatus.CREATED, HTTPStatus.ACCEPTED)
+    except (aiohttp.ClientError, aiohttp.ClientResponseError):
+        return False
+
+
+async def _verify_upload(session, base_url, headers, file_path):
+    download_url = f'{base_url}/v1/disk/resources/download'
+    try:
+        async with session.get(
+            download_url, headers=headers, params={'path': file_path}
+        ) as resp:
+            if resp.status != HTTPStatus.OK:
+                return False
+            try:
+                await resp.json()
+            except aiohttp.ContentTypeError:
+                return False
+    except (aiohttp.ClientError, aiohttp.ClientResponseError):
+        return False
+    return True
+
+
+def _build_short_link(file_path, base_host_url):
+    try:
+        url_map = URLMap.query.filter_by(original=file_path).first()
+        if not url_map:
+            short_id = get_unique_short_id()
+            url_map = URLMap(original=file_path, short=short_id)
+            db.session.add(url_map)
+            db.session.commit()
+        return f'{base_host_url.rstrip("/")}/{url_map.short}'
+    except SQLAlchemyError:
+        db.session.rollback()
+        return None
+
+
+async def upload_files_to_yandex_disk(files, base_host_url):
     """Асинхронная загрузка файлов на Яндекс Диск."""
     disk_token = os.getenv('DISK_TOKEN')
     if not disk_token:
@@ -79,61 +137,23 @@ async def upload_files_to_yandex_disk(files, base_host_url):  # noqa: C901
             file_path = 'app:/' + filename
             file_content = file.read()
 
-            try:
-                upload_url = f'{base_url}/v1/disk/resources/upload'
-                async with session.get(
-                    upload_url,
-                    headers=headers,
-                    params={'path': file_path, 'overwrite': 'true'},
-                ) as resp:
-                    if resp.status != HTTPStatus.OK:
-                        continue
-                    try:
-                        upload_data = await resp.json()
-                    except aiohttp.ContentTypeError:
-                        continue
-                    upload_href = upload_data.get('href')
-                    if not upload_href:
-                        continue
-            except (aiohttp.ClientError, aiohttp.ClientResponseError):
+            upload_href = await _request_upload_href(
+                session, base_url, headers, file_path
+            )
+            if not upload_href:
                 continue
 
-            try:
-                async with session.put(upload_href, data=file_content) as resp:
-                    if resp.status not in [
-                        HTTPStatus.CREATED,
-                        HTTPStatus.ACCEPTED,
-                    ]:
-                        continue
-            except (aiohttp.ClientError, aiohttp.ClientResponseError):
+            if not await _upload_file(session, upload_href, file_content):
                 continue
 
-            try:
-                download_url = f'{base_url}/v1/disk/resources/download'
-                async with session.get(
-                    download_url, headers=headers, params={'path': file_path}
-                ) as resp:
-                    if resp.status != HTTPStatus.OK:
-                        continue
-                    try:
-                        await resp.json()
-                    except aiohttp.ContentTypeError:
-                        continue
-            except (aiohttp.ClientError, aiohttp.ClientResponseError):
+            if not await _verify_upload(session, base_url, headers, file_path):
                 continue
 
-            try:
-                url_map = URLMap.query.filter_by(original=file_path).first()
-                if not url_map:
-                    short_id = get_unique_short_id()
-                    url_map = URLMap(original=file_path, short=short_id)
-                    db.session.add(url_map)
-                    db.session.commit()
-                short_link = f'{base_host_url.rstrip("/")}/{url_map.short}'
-                uploaded_files.append(
-                    {'filename': original_filename, 'short_link': short_link}
-                )
-            except SQLAlchemyError:
-                db.session.rollback()
+            short_link = _build_short_link(file_path, base_host_url)
+            if not short_link:
                 continue
+
+            uploaded_files.append(
+                {'filename': original_filename, 'short_link': short_link}
+            )
     return uploaded_files
